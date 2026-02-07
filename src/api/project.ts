@@ -4,109 +4,11 @@ import { type Either, left } from "../types/either";
 import { type APIError, type CommsAddress, type Zip321Request } from "../types/api";
 import {
   type ProjectId,
-  type UserId,
   type Project,
   type ProjectDetail,
-  type Contributor,
   type DepreciationFn,
 } from "../types/domain";
-
-// --- JSON decoders ---
-
-function parseDate(s: string): Date {
-  return new Date(s);
-}
-
-interface ProjectJSON {
-  projectId: string;
-  project: {
-    projectName: string;
-    inceptionDate: string;
-    initiator: string;
-    depf: {
-      type: string;
-      arguments: { undep: number; dep: number };
-    };
-  };
-}
-
-function decodeProject(json: unknown): Project {
-  const j = json as ProjectJSON;
-  return {
-    projectId: j.projectId,
-    projectName: j.project.projectName,
-    inceptionDate: parseDate(j.project.inceptionDate),
-    initiator: j.project.initiator,
-    depf: decodeDepreciationFn(j.project.depf),
-  };
-}
-
-function decodeDepreciationFn(json: {
-  type: string;
-  arguments: { undep: number; dep: number };
-}): DepreciationFn {
-  return {
-    type: "LinearDepreciation",
-    undep: json.arguments.undep,
-    dep: json.arguments.dep,
-  };
-}
-
-function decodeProjects(json: unknown): Project[] {
-  return (json as ProjectJSON[]).map(decodeProject);
-}
-
-interface ContributorJSON {
-  userId: string;
-  username: string;
-  joinedOn: string;
-  loggedHours: number;
-  depreciatedHours: number;
-  revenueShare: { numerator: number; denominator: number };
-}
-
-interface ProjectDetailJSON {
-  project: {
-    projectName: string;
-    inceptionDate: string;
-    initiator: string;
-    depf: {
-      type: string;
-      arguments: { undep: number; dep: number };
-    };
-  };
-  contributors: ContributorJSON[];
-}
-
-function decodeProjectDetail(pid: ProjectId) {
-  return (json: unknown): ProjectDetail => {
-    const j = json as ProjectDetailJSON;
-    const contributors = new Map<UserId, Contributor>();
-    for (const c of j.contributors) {
-      contributors.set(c.userId, {
-        userId: c.userId,
-        handle: c.username,
-        joinedOn: parseDate(c.joinedOn),
-        loggedHours: c.loggedHours,
-        depreciatedHours: c.depreciatedHours,
-        revShare: {
-          numerator: c.revenueShare.numerator,
-          denominator: c.revenueShare.denominator,
-        },
-      });
-    }
-    return {
-      project: {
-        projectId: pid,
-        projectName: j.project.projectName,
-        inceptionDate: parseDate(j.project.inceptionDate),
-        initiator: j.project.initiator,
-        depf: decodeDepreciationFn(j.project.depf),
-      },
-      contributors,
-    };
-  };
-}
+import { decodeProjects, decodeProjectDetail, projectCreateResponseSchema, projectInviteResponseSchema } from "./schemas/project";
 
 // --- API functions ---
 
@@ -172,8 +74,8 @@ export async function apiInvite(
       body,
     );
     return parseResponse(response, (json) => {
-      const j = json as { zip321_request?: string };
-      return j.zip321_request ?? null;
+      const parsed = projectInviteResponseSchema.parse(json);
+      return parsed.zip321_request ?? null;
     });
   } catch (e) {
     return left({
@@ -201,10 +103,9 @@ export async function apiCreateProject(
       },
     });
     const response = await postWithXsrf("/api/projects/", body);
-    return parseResponse(
-      response,
-      (json) => (json as { projectId: string }).projectId,
-    );
+    return parseResponse(response, (json) => {
+      return projectCreateResponseSchema.parse(json).projectId;
+    });
   } catch (e) {
     return left({
       type: "error",

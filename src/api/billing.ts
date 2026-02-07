@@ -8,6 +8,7 @@ import {
   type PaymentRequest,
   type Recurrence,
 } from "../types/domain";
+import { decodeBillables, decodePaymentRequest, billableCreateResponseSchema } from "./schemas/billing";
 
 // --- JSON encoding ---
 
@@ -38,81 +39,6 @@ function billableToJSON(b: Billable): unknown {
   };
 }
 
-// --- JSON decoding ---
-
-interface RecurrenceJSON {
-  annually?: Record<string, never>;
-  monthly?: number;
-  weekly?: number;
-  onetime?: Record<string, never>;
-}
-
-function decodeRecurrence(json: RecurrenceJSON): Recurrence {
-  if (json.annually !== undefined) return { type: "annually" };
-  if (json.monthly !== undefined) return { type: "monthly", months: json.monthly };
-  if (json.weekly !== undefined) return { type: "weekly", weeks: json.weekly };
-  if (json.onetime !== undefined) return { type: "onetime" };
-  return { type: "onetime" };
-}
-
-interface BillableJSON {
-  billableId: string;
-  name: string;
-  description?: string;
-  message?: string;
-  recurrence: RecurrenceJSON;
-  amount: { zatoshi: number } | number;
-  gracePeriod: number;
-  requestExpiryPeriod?: number; // seconds
-}
-
-function decodeBillable(json: BillableJSON): [BillableId, Billable] {
-  const amt =
-    typeof json.amount === "number"
-      ? BigInt(json.amount)
-      : BigInt(json.amount.zatoshi);
-
-  return [
-    json.billableId,
-    {
-      name: json.name,
-      description: json.description ?? "",
-      message: json.message ?? "",
-      recurrence: decodeRecurrence(json.recurrence),
-      amount: amt,
-      gracePeriod: json.gracePeriod,
-      requestExpiryPeriod: json.requestExpiryPeriod
-        ? json.requestExpiryPeriod / 3600
-        : 24,
-    },
-  ];
-}
-
-interface PaymentRequestJSON {
-  payment_request_id: string;
-  native_request: {
-    zip321_request: string;
-  };
-  expires_at: string;
-  total: { zatoshi: number } | number;
-}
-
-function decodePaymentRequest(json: PaymentRequestJSON): PaymentRequest {
-  const total =
-    typeof json.total === "number"
-      ? BigInt(json.total)
-      : BigInt(json.total.zatoshi);
-
-  return {
-    paymentRequestId: json.payment_request_id,
-    nativeRequest: {
-      zip321Request: json.native_request.zip321_request,
-    },
-    expiresAt: new Date(json.expires_at),
-    total,
-  };
-}
-
 // --- API functions ---
 
 export async function apiListBillables(
@@ -124,8 +50,15 @@ export async function apiListBillables(
     );
     if (response.status === 403) return left({ type: "forbidden" });
     if (response.status === 200) {
-      const json = (await response.json()) as BillableJSON[];
-      return right(json.map(decodeBillable));
+      try {
+        const json: unknown = await response.json();
+        return right(decodeBillables(json));
+      } catch (e) {
+        return left({
+          type: "parseFailure",
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
     }
     return left({
       type: "error",
@@ -152,8 +85,15 @@ export async function apiCreateBillable(
     );
     if (response.status === 403) return left({ type: "forbidden" });
     if (response.status === 200) {
-      const json = (await response.json()) as { billableId: string };
-      return right(json.billableId);
+      try {
+        const json: unknown = await response.json();
+        return right(billableCreateResponseSchema.parse(json).billableId);
+      } catch (e) {
+        return left({
+          type: "parseFailure",
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
     }
     return left({
       type: "error",
@@ -186,8 +126,15 @@ export async function apiCreatePaymentRequest(
     );
     if (response.status === 403) return left({ type: "forbidden" });
     if (response.status === 200) {
-      const json = (await response.json()) as PaymentRequestJSON;
-      return right(decodePaymentRequest(json));
+      try {
+        const json: unknown = await response.json();
+        return right(decodePaymentRequest(json));
+      } catch (e) {
+        return left({
+          type: "parseFailure",
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
     }
     return left({
       type: "error",
