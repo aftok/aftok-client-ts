@@ -1,0 +1,31 @@
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json vite.config.ts tailwind.config.js postcss.config.js index.html ./
+COPY src/ ./src/
+
+RUN npm run build
+
+# Final stage - just the built application
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates
+
+# NOTE: This path (/app/dist) must match the init container in
+# helm/chart/aftok/templates/deployment-nginx.yaml
+RUN mkdir -p /app/dist
+
+COPY --from=builder /app/dist /app/dist
+
+RUN addgroup -g 1000 aftok && \
+    adduser -D -s /bin/sh -u 1000 -G aftok aftok
+
+RUN chown -R aftok:aftok /app
+
+USER aftok
+
+CMD ["sh", "-c", "echo 'Aftok client app ready'"]
