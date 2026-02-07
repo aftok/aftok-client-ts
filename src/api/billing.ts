@@ -92,7 +92,6 @@ interface PaymentRequestJSON {
   payment_request_id: string;
   native_request: {
     zip321_request: string;
-    schemaVersion: string;
   };
   expires_at: string;
   total: { zatoshi: number } | number;
@@ -108,7 +107,6 @@ function decodePaymentRequest(json: PaymentRequestJSON): PaymentRequest {
     paymentRequestId: json.payment_request_id,
     nativeRequest: {
       zip321Request: json.native_request.zip321_request,
-      schemaVersion: json.native_request.schemaVersion,
     },
     expiresAt: new Date(json.expires_at),
     total,
@@ -154,8 +152,8 @@ export async function apiCreateBillable(
     );
     if (response.status === 403) return left({ type: "forbidden" });
     if (response.status === 200) {
-      const text = await response.text();
-      return right(text.replace(/"/g, ""));
+      const json = (await response.json()) as { billableId: string };
+      return right(json.billableId);
     }
     return left({
       type: "error",

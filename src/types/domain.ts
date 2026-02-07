@@ -90,7 +90,6 @@ export interface PaymentRequest {
   paymentRequestId: string;
   nativeRequest: {
     zip321Request: string;
-    schemaVersion: string;
   };
   expiresAt: Date;
   total: bigint; // Zatoshi

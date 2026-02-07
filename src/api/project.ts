@@ -201,7 +201,10 @@ export async function apiCreateProject(
       },
     });
     const response = await postWithXsrf("/api/projects/", body);
-    return parseResponse(response, (json) => json as string);
+    return parseResponse(
+      response,
+      (json) => (json as { projectId: string }).projectId,
+    );
   } catch (e) {
     return left({
       type: "error",

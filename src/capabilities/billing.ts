@@ -61,7 +61,6 @@ export const mockBillingCapability: BillingCapability = {
         paymentRequestId: "mock-pr-id",
         nativeRequest: {
           zip321Request: "zcash:?address=mock&amount=1.0",
-          schemaVersion: "1.0",
         },
         expiresAt: new Date(),
         total: 100000000n,
