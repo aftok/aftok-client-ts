@@ -30,6 +30,7 @@ export function PaymentRequestModal({
   const [description, setDescription] = useState("");
   const [mode, setMode] = useState<Mode>({ type: "form" });
   const [nameError, setNameError] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function handleClose() {
@@ -37,6 +38,7 @@ export function PaymentRequestModal({
     setDescription("");
     setMode({ type: "form" });
     setNameError(false);
+    setSubmitError(null);
     onClose();
   }
 
@@ -50,6 +52,7 @@ export function PaymentRequestModal({
       return;
     }
     setNameError(false);
+    setSubmitError(null);
     setSubmitting(true);
 
     const result = await caps.createPaymentRequest(projectId, billableId, {
@@ -61,8 +64,17 @@ export function PaymentRequestModal({
 
     if (result.type === "right") {
       setMode({ type: "qr", paymentRequest: result.value });
+    } else if (result.value.type === "noPayableMembers") {
+      setSubmitError(
+        "No project members have payment addresses configured. " +
+        "Each member must add a Zcash address to their account before " +
+        "payment requests can be created."
+      );
     } else {
       system.error("Failed to create payment request.");
+      setSubmitError(
+        "Something went wrong. Please try again, or contact support if the problem persists."
+      );
     }
   }
 
@@ -97,6 +109,11 @@ export function PaymentRequestModal({
               />
             </div>
           </div>
+          {submitError && (
+            <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+              {submitError}
+            </div>
+          )}
           <div className="flex justify-end space-x-3 mt-6">
             <button
               onClick={handleClose}

@@ -11,6 +11,7 @@ import {
   apiCreateBillable,
   apiCreatePaymentRequest,
   type PaymentRequestMeta,
+  type PaymentRequestError,
 } from "../api/billing";
 
 export interface CreateBillableCapability {
@@ -25,7 +26,7 @@ export interface PaymentRequestCapability {
     pid: ProjectId,
     bid: BillableId,
     meta: PaymentRequestMeta,
-  ) => Promise<Either<APIError, PaymentRequest>>;
+  ) => Promise<Either<PaymentRequestError, PaymentRequest>>;
 }
 
 export interface BillingCapability {

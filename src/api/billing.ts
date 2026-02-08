@@ -28,14 +28,16 @@ function recurrenceToJSON(r: Recurrence): unknown {
 function billableToJSON(b: Billable): unknown {
   return {
     schemaVersion: "1.0",
-    name: b.name,
-    description: b.description,
-    message: b.message,
-    recurrence: recurrenceToJSON(b.recurrence),
-    currency: "ZEC",
-    amount: Number(b.amount),
-    gracePeriod: b.gracePeriod,
-    requestExpiryPeriod: b.requestExpiryPeriod * 3600, // hours → seconds
+    Billable: {
+      name: b.name,
+      description: b.description,
+      message: b.message,
+      recurrence: recurrenceToJSON(b.recurrence),
+      currency: "ZEC",
+      amount: Number(b.amount),
+      gracePeriod: b.gracePeriod,
+      requestExpiryPeriod: b.requestExpiryPeriod * 3600, // hours → seconds
+    },
   };
 }
 
@@ -95,10 +97,11 @@ export async function apiCreateBillable(
         });
       }
     }
+    const body = await response.text().catch(() => response.statusText);
     return left({
       type: "error",
       status: response.status,
-      message: response.statusText,
+      message: body,
     });
   } catch (e) {
     return left({
@@ -114,17 +117,32 @@ export interface PaymentRequestMeta {
   requestDesc?: string;
 }
 
+export type PaymentRequestError =
+  | APIError
+  | { type: "noPayableMembers" };
+
 export async function apiCreatePaymentRequest(
   pid: ProjectId,
   bid: BillableId,
   _meta: PaymentRequestMeta,
-): Promise<Either<APIError, PaymentRequest>> {
+): Promise<Either<PaymentRequestError, PaymentRequest>> {
   try {
     const response = await postWithXsrf(
       `/api/projects/${pid}/billables/${bid}/paymentRequests`,
       JSON.stringify({ schemaVersion: "2.0" }),
     );
     if (response.status === 403) return left({ type: "forbidden" });
+    if (response.status === 409) {
+      try {
+        const json = (await response.json()) as { error?: string };
+        if (json.error === "noPayableMembers") {
+          return left({ type: "noPayableMembers" });
+        }
+      } catch {
+        // fall through to generic error
+      }
+      return left({ type: "error", status: 409, message: "Conflict" });
+    }
     if (response.status === 200) {
       try {
         const json: unknown = await response.json();

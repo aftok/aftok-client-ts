@@ -3,10 +3,10 @@ import { uuidSchema } from "./common";
 import type { Billable, BillableId, Recurrence, PaymentRequest } from "../../types/domain";
 
 const recurrenceSchema = z.union([
-  z.object({ annually: z.unknown() }).transform((): Recurrence => ({ type: "annually" })),
+  z.object({ annually: z.null() }).transform((): Recurrence => ({ type: "annually" })),
   z.object({ monthly: z.number() }).transform((v): Recurrence => ({ type: "monthly", months: v.monthly })),
   z.object({ weekly: z.number() }).transform((v): Recurrence => ({ type: "weekly", weeks: v.weekly })),
-  z.object({ onetime: z.unknown() }).transform((): Recurrence => ({ type: "onetime" })),
+  z.object({ onetime: z.null() }).transform((): Recurrence => ({ type: "onetime" })),
 ]);
 
 const amountSchema = z.union([

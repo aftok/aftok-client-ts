@@ -42,6 +42,7 @@ export function CreateBillableModal({
   const [gracePeriod, setGracePeriod] = useState("");
   const [requestExpiry, setRequestExpiry] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function resetForm() {
@@ -54,6 +55,7 @@ export function CreateBillableModal({
     setGracePeriod("");
     setRequestExpiry("");
     setFieldErrors([]);
+    setSubmitError(null);
   }
 
   function validate(): Billable | null {
@@ -114,6 +116,7 @@ export function CreateBillableModal({
     if (!billable) return;
 
     setSubmitting(true);
+    setSubmitError(null);
     const result = await caps.createBillable(projectId, billable);
     setSubmitting(false);
 
@@ -122,7 +125,9 @@ export function CreateBillableModal({
       onBillableCreated(result.value);
       onClose();
     } else {
-      system.error("Failed to create billable.");
+      const detail = result.value.type === "error" ? result.value.message : result.value.type;
+      system.error(`Failed to create billable: ${detail}`);
+      setSubmitError("Something went wrong. Please try again, or contact support if the problem persists.");
     }
   }
 
@@ -259,6 +264,12 @@ export function CreateBillableModal({
           )}
         </div>
       </div>
+
+      {submitError && (
+        <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+          {submitError}
+        </div>
+      )}
 
       <div className="flex justify-end space-x-3 mt-6">
         <button
