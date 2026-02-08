@@ -52,6 +52,13 @@ export interface TimeSpan {
   seconds: number;
 }
 
+// Account settings types
+
+export interface AccountSettings {
+  username: string;
+  zcashAddress: string | null;
+}
+
 // Billing types
 
 export type BillableId = string; // UUID

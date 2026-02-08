@@ -19,6 +19,7 @@ import { apiOverviewCapability } from "./capabilities/overview";
 import { apiTimelineCapability } from "./capabilities/timeline";
 import { apiBillingCapability } from "./capabilities/billing";
 import { apiAcceptInviteCapability } from "./capabilities/acceptInvite";
+import { apiAccountSettingsCapability } from "./capabilities/accountSettings";
 import { type ProjectId } from "./types/domain";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
@@ -28,6 +29,7 @@ import { OverviewPage } from "./pages/OverviewPage";
 import { TimelinePage } from "./pages/TimelinePage";
 import { BillingPage } from "./pages/BillingPage";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 import { LoadingPage } from "./pages/LoadingPage";
 import { NavBar } from "./components/NavBar";
 
@@ -106,6 +108,7 @@ function AppRoutes({
   const timelineCap = apiTimelineCapability;
   const billingCap = apiBillingCapability;
   const acceptInviteCap = apiAcceptInviteCapability;
+  const accountSettingsCap = apiAccountSettingsCapability;
 
   // Fetch config on mount (mirrors PureScript Initialize action)
   useEffect(() => {
@@ -250,6 +253,22 @@ function AppRoutes({
               projectCaps={projectCap}
               selectedProject={selectedProject}
               onProjectChange={setSelectedProject}
+            />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <AuthGuard
+            system={system}
+            loginCap={loginCap}
+            username={username}
+            onLogout={handleLogout}
+          >
+            <AccountSettingsPage
+              system={system}
+              caps={accountSettingsCap}
             />
           </AuthGuard>
         }

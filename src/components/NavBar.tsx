@@ -33,6 +33,7 @@ export function NavBar({ username, onLogout }: NavBarProps) {
             {navLink("/overview", "Overview")}
             {navLink("/timeline", "Timeline")}
             {navLink("/billing", "Billing")}
+            {navLink("/settings", "Settings")}
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-gray-300 text-sm">{username}</span>
