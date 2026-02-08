@@ -43,7 +43,16 @@ export async function apiCheckLogin(): Promise<LoginResponse> {
   try {
     const response = await getWithCredentials("/api/login/check");
     if (response.status === 200) {
-      return { type: "ok" };
+      const body: unknown = await response.json();
+      if (
+        typeof body === "object" &&
+        body !== null &&
+        "loggedIn" in body &&
+        (body as { loggedIn: unknown }).loggedIn === true
+      ) {
+        return { type: "ok" };
+      }
+      return { type: "forbidden" };
     }
     return { type: "forbidden" };
   } catch (e) {
@@ -165,6 +174,56 @@ export async function apiSignup(
   }
 }
 
+// --- Accept Invitation ---
+
+export type AcceptInvitationResponse =
+  | { type: "ok" }
+  | { type: "notFound" }
+  | { type: "expired" }
+  | { type: "alreadyAccepted" }
+  | { type: "error"; status: number | null; message: string };
+
+export async function apiAcceptInvitation(
+  invCode: string,
+): Promise<AcceptInvitationResponse> {
+  try {
+    const response = await postWithXsrf(
+      `/api/accept_invitation?invCode=${encodeURIComponent(invCode)}`,
+    );
+    switch (response.status) {
+      case 200:
+      case 204:
+        return { type: "ok" };
+      case 404:
+        return { type: "notFound" };
+      case 403: {
+        const body = await response.text();
+        if (body.includes("InvitationAlreadyAccepted")) {
+          return { type: "alreadyAccepted" };
+        }
+        if (body.includes("InvitationExpired")) {
+          return { type: "expired" };
+        }
+        return { type: "error", status: 403, message: body };
+      }
+      case 400:
+        return { type: "error", status: 400, message: "Invalid invitation code" };
+      default:
+        return {
+          type: "error",
+          status: response.status,
+          message: response.statusText,
+        };
+    }
+  } catch (e) {
+    return {
+      type: "error",
+      status: null,
+      message: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
 // --- Password Reset ---
 
 export type PasswordResetRequestBody =
@@ -173,6 +232,11 @@ export type PasswordResetRequestBody =
 
 export type PasswordResetRequestResponse =
   | { type: "sent" }
+  | { type: "error"; status: number | null; message: string };
+
+export type ValidateTokenResponse =
+  | { type: "valid" }
+  | { type: "invalidToken" }
   | { type: "error"; status: number | null; message: string };
 
 export type PasswordResetConfirmResponse =
@@ -201,6 +265,35 @@ export async function apiRequestPasswordReset(
       status: response.status,
       message: response.statusText,
     };
+  } catch (e) {
+    return {
+      type: "error",
+      status: null,
+      message: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+export async function apiValidateResetToken(
+  token: string,
+): Promise<ValidateTokenResponse> {
+  try {
+    const response = await getWithCredentials(
+      `/api/password-reset/validate/${encodeURIComponent(token)}`,
+    );
+    switch (response.status) {
+      case 200:
+      case 204:
+        return { type: "valid" };
+      case 400:
+        return { type: "invalidToken" };
+      default:
+        return {
+          type: "error",
+          status: response.status,
+          message: response.statusText,
+        };
+    }
   } catch (e) {
     return {
       type: "error",

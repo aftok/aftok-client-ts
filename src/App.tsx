@@ -18,6 +18,7 @@ import { apiProjectListCapability } from "./capabilities/project";
 import { apiOverviewCapability } from "./capabilities/overview";
 import { apiTimelineCapability } from "./capabilities/timeline";
 import { apiBillingCapability } from "./capabilities/billing";
+import { apiAcceptInviteCapability } from "./capabilities/acceptInvite";
 import { type ProjectId } from "./types/domain";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
@@ -26,6 +27,7 @@ import { PasswordResetConfirmPage } from "./pages/PasswordResetConfirmPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { TimelinePage } from "./pages/TimelinePage";
 import { BillingPage } from "./pages/BillingPage";
+import { AcceptInvitePage } from "./pages/AcceptInvitePage";
 import { LoadingPage } from "./pages/LoadingPage";
 import { NavBar } from "./components/NavBar";
 
@@ -103,6 +105,7 @@ function AppRoutes({
   const overviewCap = apiOverviewCapability;
   const timelineCap = apiTimelineCapability;
   const billingCap = apiBillingCapability;
+  const acceptInviteCap = apiAcceptInviteCapability;
 
   // Fetch config on mount (mirrors PureScript Initialize action)
   useEffect(() => {
@@ -115,9 +118,9 @@ function AppRoutes({
   }, [system]);
 
   const handleLoginComplete = useCallback(
-    (user: string) => {
+    (user: string, returnTo?: string) => {
       setUsername(user);
-      navigate("/overview");
+      navigate(returnTo ?? "/overview");
     },
     [navigate],
   );
@@ -181,6 +184,15 @@ function AppRoutes({
           <PasswordResetConfirmPage
             system={system}
             caps={passwordResetConfirmCap}
+          />
+        }
+      />
+      <Route
+        path="/accept-invite"
+        element={
+          <AcceptInvitePage
+            system={system}
+            caps={acceptInviteCap}
           />
         }
       />

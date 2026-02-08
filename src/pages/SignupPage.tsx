@@ -1,8 +1,18 @@
-import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useState, useEffect, useCallback, useRef, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { type System } from "../capabilities/system";
 import { type SignupCapability } from "../capabilities/signup";
 import { type RecoverBy } from "../api/account";
+
+declare global {
+  interface Window {
+    grecaptcha?: {
+      ready: (cb: () => void) => void;
+      render: (container: HTMLElement, params: { sitekey: string }) => number;
+      getResponse: (widgetId?: number) => string;
+    };
+  }
+}
 
 type CommsType = "email" | "zcash";
 
@@ -30,7 +40,7 @@ interface SignupPageProps {
 export function SignupPage({
   system,
   caps,
-  recaptchaSiteKey: _recaptchaSiteKey,
+  recaptchaSiteKey,
   onSignupComplete,
 }: SignupPageProps) {
   const [searchParams] = useSearchParams();
@@ -48,6 +58,8 @@ export function SignupPage({
   const [zaddrStatus, setZaddrStatus] = useState<
     "unchecked" | "valid" | "invalid"
   >("unchecked");
+  const recaptchaRef = useRef<HTMLDivElement>(null);
+  const recaptchaWidgetId = useRef<number | null>(null);
 
   // Parse invitation code and zaddr from URL query params
   useEffect(() => {
@@ -63,10 +75,35 @@ export function SignupPage({
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Render reCAPTCHA widget once the script is loaded and the container is mounted
+  useEffect(() => {
+    if (!recaptchaRef.current || recaptchaWidgetId.current !== null) return;
+    const container = recaptchaRef.current;
+
+    function tryRender() {
+      if (window.grecaptcha?.ready) {
+        window.grecaptcha.ready(() => {
+          if (container && !container.hasChildNodes() && window.grecaptcha) {
+            recaptchaWidgetId.current = window.grecaptcha.render(container, {
+              sitekey: recaptchaSiteKey,
+            });
+          }
+        });
+      } else {
+        setTimeout(tryRender, 100);
+      }
+    }
+    tryRender();
+  }, [recaptchaSiteKey]);
+
+  const zaddrRequestRef = useRef(0);
   const checkZAddr = useCallback(
     async (addr: string) => {
       if (!addr) return;
+      const requestId = ++zaddrRequestRef.current;
       const result = await caps.checkZAddr(addr);
+      // Only apply if no newer request has been issued
+      if (requestId !== zaddrRequestRef.current) return;
       setZaddrStatus(result.type === "valid" ? "valid" : "invalid");
     },
     [caps],
@@ -134,6 +171,17 @@ export function SignupPage({
       });
     }
 
+    // Validate captcha
+    const captchaToken = window.grecaptcha?.getResponse(
+      recaptchaWidgetId.current ?? undefined,
+    );
+    if (!captchaToken) {
+      newErrors.push({
+        field: "captcha",
+        message: "Please complete the captcha",
+      });
+    }
+
     if (newErrors.length > 0) {
       setErrors(newErrors);
       return;
@@ -153,7 +201,7 @@ export function SignupPage({
       username,
       password,
       recoverBy,
-      captchaToken: "", // TODO: integrate reCAPTCHA in a later pass
+      captchaToken: captchaToken!,
       invitationCodes: codes,
     });
 
@@ -260,6 +308,11 @@ export function SignupPage({
                 onChange={(e) => setPasswordConfirm(e.target.value)}
                 className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              {passwordConfirm.length > 0 && password !== passwordConfirm && (
+                <span className="inline-block mt-1 px-2 py-0.5 text-sm text-red-700 bg-red-50 rounded">
+                  Passwords do not match
+                </span>
+              )}
               {renderFieldError("confirm")}
             </div>
             {/* Recovery channel toggle */}
@@ -344,8 +397,7 @@ export function SignupPage({
                 className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            {/* reCAPTCHA placeholder */}
-            <div id="grecaptcha" />
+            <div ref={recaptchaRef} id="grecaptcha" />
             {renderFieldError("captcha")}
             {renderFieldError("general")}
             <button

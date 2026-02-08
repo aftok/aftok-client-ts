@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { type System } from "../capabilities/system";
 import { type InviteCapability } from "../capabilities/overview";
 import { type ProjectId } from "../types/domain";
@@ -33,7 +33,25 @@ export function InviteCollaboratorModal({
   const [channel, setChannel] = useState<CommsType>("email");
   const [email, setEmail] = useState("");
   const [zaddr, setZaddr] = useState("");
+  const [zaddrStatus, setZaddrStatus] = useState<
+    "unchecked" | "valid" | "invalid"
+  >("unchecked");
   const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+
+  const zaddrRequestRef = useRef(0);
+  const checkZAddr = useCallback(
+    async (addr: string) => {
+      if (!addr) {
+        setZaddrStatus("unchecked");
+        return;
+      }
+      const requestId = ++zaddrRequestRef.current;
+      const result = await caps.checkZAddr(addr);
+      if (requestId !== zaddrRequestRef.current) return;
+      setZaddrStatus(result.type === "valid" ? "valid" : "invalid");
+    },
+    [caps],
+  );
 
   function reset() {
     setMode({ type: "form" });
@@ -42,6 +60,7 @@ export function InviteCollaboratorModal({
     setChannel("email");
     setEmail("");
     setZaddr("");
+    setZaddrStatus("unchecked");
     setFieldErrors([]);
   }
 
@@ -62,6 +81,8 @@ export function InviteCollaboratorModal({
       errors.push("An email value is required when email comms are selected");
     if (channel === "zcash" && !zaddr.trim())
       errors.push("A Zcash shielded address is required");
+    if (channel === "zcash" && zaddr.trim() && zaddrStatus === "invalid")
+      errors.push("Not a valid Zcash address");
 
     if (errors.length > 0) {
       setFieldErrors(errors);
@@ -223,9 +244,17 @@ export function InviteCollaboratorModal({
                 type="text"
                 placeholder="Enter a Zcash shielded address"
                 value={zaddr}
-                onChange={(e) => setZaddr(e.target.value)}
+                onChange={(e) => {
+                  setZaddr(e.target.value);
+                  void checkZAddr(e.target.value);
+                }}
                 className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              {zaddrStatus === "invalid" && (
+                <span className="inline-block mt-1 px-2 py-0.5 text-sm text-red-700 bg-red-50 rounded">
+                  Not a valid Zcash address
+                </span>
+              )}
             </div>
           )}
           {fieldErrors.map((err, i) => (

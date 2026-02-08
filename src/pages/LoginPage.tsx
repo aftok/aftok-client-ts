@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { type System } from "../capabilities/system";
 import { type LoginCapability } from "../capabilities/login";
 
@@ -8,10 +8,11 @@ type LoginError = "forbidden" | "serverError";
 interface LoginPageProps {
   system: System;
   caps: LoginCapability;
-  onLoginComplete: (username: string) => void;
+  onLoginComplete: (username: string, returnTo?: string) => void;
 }
 
 export function LoginPage({ system, caps, onLoginComplete }: LoginPageProps) {
+  const [searchParams] = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<LoginError | null>(null);
@@ -21,9 +22,11 @@ export function LoginPage({ system, caps, onLoginComplete }: LoginPageProps) {
     system.log("Sending login request...");
     const response = await caps.login(username, password);
     switch (response.type) {
-      case "ok":
-        onLoginComplete(username);
+      case "ok": {
+        const returnTo = searchParams.get("returnTo") ?? undefined;
+        onLoginComplete(username, returnTo);
         break;
+      }
       case "forbidden":
         setLoginError("forbidden");
         break;

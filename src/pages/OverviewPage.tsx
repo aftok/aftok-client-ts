@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { type System } from "../capabilities/system";
 import { type OverviewCapability } from "../capabilities/overview";
 import { type ProjectListCapability } from "../capabilities/project";
@@ -37,24 +37,26 @@ export function OverviewPage({
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [projectListKey, setProjectListKey] = useState(0);
 
-  const loadProjectDetail = useCallback(
-    async (pid: ProjectId) => {
-      const result = await caps.getProjectDetail(pid);
-      if (result.type === "right") {
-        setProjectDetail(result.value);
-      } else {
-        system.error(`Failed to load project detail: ${result.value.type}`);
-      }
-    },
-    [caps, system],
-  );
+  // Track which project we've loaded to avoid redundant fetches
+  const loadedProjectRef = useRef<ProjectId | null>(null);
 
   useEffect(() => {
-    if (selectedProject) {
-      setProjectDetail(null); // Clear stale data immediately
-      void loadProjectDetail(selectedProject);
+    if (selectedProject && selectedProject !== loadedProjectRef.current) {
+      loadedProjectRef.current = selectedProject;
+      setProjectDetail(null);
+      const pid = selectedProject;
+      void (async () => {
+        const result = await caps.getProjectDetail(pid);
+        // Guard against stale responses if selection changed during fetch
+        if (loadedProjectRef.current !== pid) return;
+        if (result.type === "right") {
+          setProjectDetail(result.value);
+        } else {
+          system.error(`Failed to load project detail: ${result.value.type}`);
+        }
+      })();
     }
-  }, [selectedProject, loadProjectDetail]);
+  }, [selectedProject, caps, system]);
 
   function handleProjectChange(pid: ProjectId) {
     onProjectChange(pid);
