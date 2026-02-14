@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { uuidSchema } from "./common";
-import type { KeyedEvent, Interval } from "../../types/domain";
+import type { KeyedEvent, Interval, AmendEventResponse } from "../../types/domain";
 
 const creditToSchema = z.union([
   z.object({ creditToUser: uuidSchema }),
@@ -83,8 +83,27 @@ export function decodeWorkIndex(json: unknown): Interval[] {
     for (const ival of entry.intervals) {
       const start = decodeKeyedLogEntry(ival.start);
       const end = decodeKeyedLogEntry(ival.end);
-      intervals.push({ start: start.eventTime, end: end.eventTime });
+      intervals.push({
+        start: start.eventTime,
+        end: end.eventTime,
+        startEventId: start.eventId,
+        endEventId: end.eventId,
+      });
     }
   }
   return intervals;
+}
+
+// PUT /events/:eventId/amend
+const amendEventResponseSchema = z.object({
+  replacement_event: uuidSchema,
+  amendment_id: uuidSchema,
+});
+
+export function decodeAmendEventResponse(json: unknown): AmendEventResponse {
+  const parsed = amendEventResponseSchema.parse(json);
+  return {
+    replacementEventId: parsed.replacement_event,
+    amendmentId: parsed.amendment_id,
+  };
 }

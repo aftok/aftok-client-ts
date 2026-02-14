@@ -5,6 +5,7 @@ import { type ProjectListCapability } from "../capabilities/project";
 import { type ProjectId, type KeyedEvent, type Interval, type TimeSpan } from "../types/domain";
 import { ProjectSelector } from "../components/ProjectSelector";
 import { useTimer } from "../hooks/useTimer";
+import { AmendEndTimeModal, type AmendEndTimeResult } from "../modals/AmendEndTimeModal";
 
 interface TimelinePageProps {
   system: System;
@@ -56,7 +57,12 @@ function splitInterval(iv: Interval): Array<{ dateKey: string; interval: Interva
     const segEnd = dayBoundary < iv.end ? dayBoundary : iv.end;
     results.push({
       dateKey: localDateKey(current),
-      interval: { start: current, end: segEnd },
+      interval: {
+        start: current,
+        end: segEnd,
+        startEventId: iv.startEventId,
+        endEventId: iv.endEventId,
+      },
     });
     current = dayBoundary;
   }
@@ -130,6 +136,7 @@ export function TimelinePage({
   const [activeStart, setActiveStart] = useState<KeyedEvent | null>(null);
   const [now, setNow] = useState<Date>(system.now());
   const [loading, setLoading] = useState(false);
+  const [amendInterval, setAmendInterval] = useState<Interval | null>(null);
 
   const isActive = activeStart !== null;
 
@@ -235,6 +242,19 @@ export function TimelinePage({
     }
   }
 
+  function handleIntervalContextMenu(iv: Interval) {
+    if (iv.endEventId) {
+      setAmendInterval(iv);
+    }
+  }
+
+  function handleAmendResult(result: AmendEndTimeResult) {
+    setAmendInterval(null);
+    if (result.type === "amended" && selectedProject) {
+      void loadTimeline(selectedProject);
+    }
+  }
+
   // Build the active interval for display
   const activeInterval: Interval | null = activeStart
     ? { start: activeStart.eventTime, end: now }
@@ -331,7 +351,12 @@ export function TimelinePage({
 
         {/* Day-by-day interval history */}
         {sortedDays.map((day) => (
-          <DayRow key={day.dateKey} day={day} activeInterval={activeInterval} />
+          <DayRow
+            key={day.dateKey}
+            day={day}
+            activeInterval={activeInterval}
+            onIntervalContextMenu={handleIntervalContextMenu}
+          />
         ))}
 
         {!loading && sortedDays.length === 0 && (
@@ -340,6 +365,15 @@ export function TimelinePage({
           </p>
         )}
       </div>
+
+      {amendInterval && (
+        <AmendEndTimeModal
+          caps={caps}
+          open={true}
+          interval={amendInterval}
+          onResult={handleAmendResult}
+        />
+      )}
     </div>
   );
 }
@@ -347,9 +381,11 @@ export function TimelinePage({
 function DayRow({
   day,
   activeInterval,
+  onIntervalContextMenu,
 }: {
   day: DayIntervals;
   activeInterval: Interval | null;
+  onIntervalContextMenu: (iv: Interval) => void;
 }) {
   const dayMs = day.dayEnd.getTime() - day.dayStart.getTime();
   const dayTotal = totalMs(day.intervals);
@@ -378,15 +414,25 @@ function DayRow({
             activeInterval !== null &&
             iv.end.getTime() === activeInterval.end.getTime();
 
+          const canAmend = !isActiveBar && !!iv.endEventId;
+
           return (
             <div
               key={i}
-              className={`absolute top-1 bottom-1 rounded ${isActiveBar ? "bg-green-400" : "bg-orange-400"}`}
+              className={`absolute top-1 bottom-1 rounded ${isActiveBar ? "bg-green-400" : "bg-orange-400"} ${canAmend ? "cursor-context-menu" : ""}`}
               style={{
                 left: `${leftPct}%`,
                 width: `${Math.max(widthPct, 0.5)}%`,
               }}
               title={`${iv.start.toLocaleTimeString()} – ${iv.end.toLocaleTimeString()}`}
+              onContextMenu={
+                canAmend
+                  ? (e) => {
+                      e.preventDefault();
+                      onIntervalContextMenu(iv);
+                    }
+                  : undefined
+              }
             />
           );
         })}

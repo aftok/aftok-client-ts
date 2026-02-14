@@ -1,8 +1,8 @@
-import { getWithCredentials, postWithXsrf } from "./http";
+import { getWithCredentials, postWithXsrf, putWithXsrf } from "./http";
 import { type Either, left, right } from "../types/either";
 import { type APIError } from "../types/api";
-import { type ProjectId, type KeyedEvent, type Interval } from "../types/domain";
-import { decodeExtendedLogEntry, decodeEvents, decodeWorkIndex } from "./schemas/timeline";
+import { type ProjectId, type KeyedEvent, type Interval, type AmendEventResponse } from "../types/domain";
+import { decodeExtendedLogEntry, decodeEvents, decodeWorkIndex, decodeAmendEventResponse } from "./schemas/timeline";
 
 export type TimelineError =
   | { type: "apiError"; error: APIError }
@@ -136,6 +136,40 @@ export async function apiGetLatestEvent(
         const events = decodeEvents(json);
         if (events.length === 0) return right(null);
         return right(events[0]!);
+      } catch (e) {
+        return timelineLeft(e instanceof Error ? e.message : String(e));
+      }
+    }
+    return left({
+      type: "apiError",
+      error: {
+        type: "error",
+        status: response.status,
+        message: response.statusText,
+      },
+    });
+  } catch (e) {
+    return left({
+      type: "unexpected",
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
+export async function apiAmendEventTime(
+  eventId: string,
+  newTime: Date,
+): Promise<Either<TimelineError, AmendEventResponse>> {
+  try {
+    const body = JSON.stringify({
+      amendment: "timeChange",
+      eventTime: newTime.toISOString(),
+    });
+    const response = await putWithXsrf(`/api/events/${eventId}/amend`, body);
+    if (response.status === 200) {
+      try {
+        const json: unknown = await response.json();
+        return right(decodeAmendEventResponse(json));
       } catch (e) {
         return timelineLeft(e instanceof Error ? e.message : String(e));
       }

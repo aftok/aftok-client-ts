@@ -44,6 +44,13 @@ export interface KeyedEvent {
 export interface Interval {
   start: Date;
   end: Date;
+  startEventId?: string;
+  endEventId?: string;
+}
+
+export interface AmendEventResponse {
+  replacementEventId: string;
+  amendmentId: string;
 }
 
 export interface TimeSpan {

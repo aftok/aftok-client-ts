@@ -1,10 +1,11 @@
 import { type Either } from "../types/either";
-import { type ProjectId, type KeyedEvent, type Interval } from "../types/domain";
+import { type ProjectId, type KeyedEvent, type Interval, type AmendEventResponse } from "../types/domain";
 import {
   apiLogStart,
   apiLogEnd,
   apiListIntervals,
   apiGetLatestEvent,
+  apiAmendEventTime,
   type TimelineError,
 } from "../api/timeline";
 
@@ -21,6 +22,10 @@ export interface TimelineCapability {
   getLatestEvent: (
     pid: ProjectId,
   ) => Promise<Either<TimelineError, KeyedEvent | null>>;
+  amendEventTime: (
+    eventId: string,
+    newTime: Date,
+  ) => Promise<Either<TimelineError, AmendEventResponse>>;
 }
 
 export const apiTimelineCapability: TimelineCapability = {
@@ -28,6 +33,7 @@ export const apiTimelineCapability: TimelineCapability = {
   logEnd: apiLogEnd,
   listIntervals: apiListIntervals,
   getLatestEvent: apiGetLatestEvent,
+  amendEventTime: apiAmendEventTime,
 };
 
 export const mockTimelineCapability: TimelineCapability = {
@@ -49,4 +55,8 @@ export const mockTimelineCapability: TimelineCapability = {
   }),
   listIntervals: async () => ({ type: "right", value: [] }),
   getLatestEvent: async () => ({ type: "right", value: null }),
+  amendEventTime: async () => ({
+    type: "right",
+    value: { replacementEventId: "mock-replacement-id", amendmentId: "mock-amendment-id" },
+  }),
 };
