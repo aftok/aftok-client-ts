@@ -30,7 +30,9 @@ export function AmendEndTimeModal({
   interval,
   onResult,
 }: AmendEndTimeModalProps) {
-  const [newEndTime, setNewEndTime] = useState(toDatetimeLocal(interval.end));
+  const actualStart = interval.originalStart ?? interval.start;
+  const actualEnd = interval.originalEnd ?? interval.end;
+  const [newEndTime, setNewEndTime] = useState(toDatetimeLocal(actualEnd));
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -51,7 +53,7 @@ export function AmendEndTimeModal({
       return;
     }
 
-    if (parsed.getTime() <= interval.start.getTime()) {
+    if (parsed.getTime() <= actualStart.getTime()) {
       setFieldError("New end time must be after the interval start time.");
       return;
     }
@@ -120,7 +122,7 @@ export function AmendEndTimeModal({
             Start time
           </label>
           <p className="mt-1 text-sm text-gray-500">
-            {interval.start.toLocaleString()}
+            {actualStart.toLocaleString()}
           </p>
         </div>
         <div>
@@ -128,7 +130,7 @@ export function AmendEndTimeModal({
             Current end time
           </label>
           <p className="mt-1 text-sm text-gray-500">
-            {interval.end.toLocaleString()}
+            {actualEnd.toLocaleString()}
           </p>
         </div>
         <div>

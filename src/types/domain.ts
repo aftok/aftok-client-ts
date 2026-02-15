@@ -46,6 +46,10 @@ export interface Interval {
   end: Date;
   startEventId?: string;
   endEventId?: string;
+  /** Original start time before day-boundary splitting. */
+  originalStart?: Date;
+  /** Original end time before day-boundary splitting. */
+  originalEnd?: Date;
 }
 
 export interface AmendEventResponse {

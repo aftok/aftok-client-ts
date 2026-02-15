@@ -62,6 +62,8 @@ function splitInterval(iv: Interval): Array<{ dateKey: string; interval: Interva
         end: segEnd,
         startEventId: iv.startEventId,
         endEventId: iv.endEventId,
+        originalStart: iv.originalStart ?? iv.start,
+        originalEnd: iv.originalEnd ?? iv.end,
       },
     });
     current = dayBoundary;
