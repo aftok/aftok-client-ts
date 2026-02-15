@@ -9,6 +9,14 @@ import {
   type Invitation,
 } from "../api/project";
 import { apiCheckZAddr } from "../api/account";
+import {
+  apiListRepoLinks,
+  apiLinkRepo,
+  apiUnlinkRepo,
+  type RepoLinkInfo,
+  type LinkRepoRequest,
+  type LinkRepoResponse,
+} from "../api/github";
 
 export interface InviteCapability {
   invite: (
@@ -25,12 +33,25 @@ export interface CreateProjectCapability {
   ) => Promise<Either<APIError, ProjectId>>;
 }
 
+export interface GitHubRepoCapability {
+  listRepoLinks: (pid: ProjectId) => Promise<Either<APIError, RepoLinkInfo[]>>;
+  linkRepo: (
+    pid: ProjectId,
+    req: LinkRepoRequest,
+  ) => Promise<Either<APIError, LinkRepoResponse>>;
+  unlinkRepo: (
+    pid: ProjectId,
+    linkId: string,
+  ) => Promise<Either<APIError, void>>;
+}
+
 export interface OverviewCapability {
   getProjectDetail: (
     pid: ProjectId,
   ) => Promise<Either<APIError, ProjectDetail | null>>;
   inviteCaps: InviteCapability;
   createCaps: CreateProjectCapability;
+  githubCaps: GitHubRepoCapability;
 }
 
 export const apiOverviewCapability: OverviewCapability = {
@@ -42,6 +63,11 @@ export const apiOverviewCapability: OverviewCapability = {
   createCaps: {
     createProject: (name: string, depf: DepreciationFn) =>
       apiCreateProject({ projectName: name, depf }),
+  },
+  githubCaps: {
+    listRepoLinks: apiListRepoLinks,
+    linkRepo: apiLinkRepo,
+    unlinkRepo: apiUnlinkRepo,
   },
 };
 
@@ -56,5 +82,13 @@ export const mockOverviewCapability: OverviewCapability = {
       type: "right",
       value: "mock-project-id",
     }),
+  },
+  githubCaps: {
+    listRepoLinks: async () => ({ type: "right", value: [] }),
+    linkRepo: async () => ({
+      type: "right",
+      value: { linkId: "mock-link-id", webhookSecret: "mock-secret" },
+    }),
+    unlinkRepo: async () => ({ type: "right", value: undefined }),
   },
 };
