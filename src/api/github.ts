@@ -6,6 +6,8 @@ import { type ProjectId } from "../types/domain";
 import {
   repoLinkInfoArraySchema,
   linkRepoResponseSchema,
+  gitHubOAuthInitResponseSchema,
+  gitHubUsernameResponseSchema,
 } from "./schemas/github";
 
 export interface RepoLinkInfo {
@@ -74,6 +76,68 @@ export async function apiUnlinkRepo(
     const response = await deleteWithXsrf(
       `/api/projects/${pid}/github/repos/${linkId}`,
     );
+    if (response.status === 403 || response.status === 401) {
+      return left({ type: "forbidden" });
+    }
+    if (response.status === 200 || response.status === 204) {
+      return right(undefined);
+    }
+    return left({
+      type: "error",
+      status: response.status,
+      message: response.statusText,
+    });
+  } catch (e) {
+    return left({
+      type: "error",
+      status: 0,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
+export interface GitHubOAuthInitResponse {
+  authUrl: string;
+}
+
+export async function apiInitGitHubOAuth(): Promise<
+  Either<APIError, GitHubOAuthInitResponse>
+> {
+  try {
+    const response = await postWithXsrf(`/api/user/github/link`);
+    return parseResponse(response, (json) =>
+      gitHubOAuthInitResponseSchema.parse(json),
+    );
+  } catch (e) {
+    return left({
+      type: "error",
+      status: 0,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
+export async function apiGetGitHubUsername(
+  signal?: AbortSignal,
+): Promise<Either<APIError, string | null>> {
+  try {
+    const response = await getWithCredentials(`/api/user/github`, signal);
+    return parseResponse(response, (json) => {
+      const parsed = gitHubUsernameResponseSchema.parse(json);
+      return parsed.username ?? null;
+    });
+  } catch (e) {
+    return left({
+      type: "error",
+      status: 0,
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
+export async function apiUnlinkGitHub(): Promise<Either<APIError, void>> {
+  try {
+    const response = await deleteWithXsrf(`/api/user/github`);
     if (response.status === 403 || response.status === 401) {
       return left({ type: "forbidden" });
     }

@@ -1,9 +1,13 @@
 import { xsrfHeaders } from "./xsrf";
 
-export async function getWithCredentials(url: string): Promise<Response> {
+export async function getWithCredentials(
+  url: string,
+  signal?: AbortSignal,
+): Promise<Response> {
   return fetch(url, {
     method: "GET",
     credentials: "include",
+    signal,
   });
 }
 
