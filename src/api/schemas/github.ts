@@ -14,3 +14,11 @@ export const linkRepoResponseSchema = z.object({
   linkId: uuidSchema,
   webhookSecret: z.string(),
 });
+
+export const gitHubOAuthInitResponseSchema = z.object({
+  authUrl: z.string(),
+});
+
+export const gitHubUsernameResponseSchema = z.object({
+  username: z.string().nullable().optional(),
+});
